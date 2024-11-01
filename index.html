@@ -1,0 +1,386 @@
+<html><head><base href="/" />
+<style>
+  body { 
+    background: #000;
+    color: #0f0;
+    font-family: monospace;
+    padding: 20px;
+    margin: 0;
+    overflow: hidden;
+  }
+  
+  .matrix-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+  }
+
+  #terminal {
+    height: 50vh;
+    overflow: auto;
+    border: 1px solid #0f0;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: rgba(0,0,0,0.8);
+  }
+
+  #urlInput {
+    background: rgba(0,0,0,0.8);
+    color: #0f0;
+    border: 1px solid #0f0;
+    padding: 10px;
+    width: calc(100% - 22px);
+    max-width: 300px;
+    margin-bottom: 10px;
+    font-family: monospace;
+  }
+
+  .code-input {
+    background: rgba(0,0,0,0.8);
+    color: #0f0;
+    border: 1px solid #0f0;
+    padding: 10px;
+    width: calc(100% - 22px);
+    max-width: 300px;
+    margin: 10px 0;
+    font-family: monospace;
+  }
+
+  .profile-preview {
+    border: 1px solid #0f0;
+    padding: 10px;
+    margin: 10px 0;
+    display: none;
+    background: rgba(0,0,0,0.8);
+  }
+
+  .profile-image {
+    width: 100px;
+    height: 100px;
+    border: 2px solid #0f0;
+    margin-right: 10px;
+  }
+
+  .typewriter {
+    overflow: hidden;
+    border-right: .15em solid #0f0;
+    white-space: nowrap;
+    animation: typing 3.5s steps(40, end), blink-caret .75s step-end infinite;
+  }
+
+  @keyframes typing {
+    from { width: 0 }
+    to { width: 100% }
+  }
+
+  @keyframes blink-caret {
+    from, to { border-color: transparent }
+    50% { border-color: #0f0; }
+  }
+
+  button {
+    background: rgba(0,0,0,0.8);
+    color: #0f0;
+    border: 1px solid #0f0;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-family: monospace;
+    width: 100%;
+    max-width: 320px;
+  }
+
+  button:hover {
+    background: #0f0;
+    color: #000;
+  }
+
+  .error-shake {
+    animation: shake 0.5s;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+  }
+
+  .hidden {
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    body {
+      padding: 10px;
+    }
+    
+    #terminal {
+      height: 60vh;
+    }
+  }
+</style>
+</head>
+<body>
+<canvas class="matrix-bg" id="matrix"></canvas>
+<input type="text" id="urlInput" placeholder="Ingresa URL de Facebook">
+<input type="text" id="usernameInput" placeholder="Ingresa nombre de usuario" class="code-input">
+<button onclick="startHackSequence()">Iniciar Hackeo</button>
+<button id="getCredentialsBtn" onclick="requestAccessCode()" class="hidden">Obtener Contraseña y Correo</button>
+<input type="text" id="codeInput" placeholder="Ingresa código de acceso" class="code-input hidden">
+<button id="submitCodeBtn" onclick="validateAccessCode()" class="hidden">Validar Código</button>
+<div id="terminal"></div>
+<div class="profile-preview" id="profilePreview"></div>
+
+<script>
+const terminal = document.getElementById('terminal');
+const urlInput = document.getElementById('urlInput');
+const usernameInput = document.getElementById('usernameInput');
+const profilePreview = document.getElementById('profilePreview');
+const getCredentialsBtn = document.getElementById('getCredentialsBtn');
+const codeInput = document.getElementById('codeInput');
+const submitCodeBtn = document.getElementById('submitCodeBtn');
+let hackInProgress = false;
+let hackAttempts = localStorage.getItem('hackAttempts') ? parseInt(localStorage.getItem('hackAttempts')) : 3;
+let lastAttemptTime = localStorage.getItem('lastAttemptTime') ? parseInt(localStorage.getItem('lastAttemptTime')) : Date.now();
+const ACCESS_CODE = '490385098457ghittrjg';
+const RESET_TIME = 7 * 60 * 60 * 1000; // 7 hours in milliseconds
+
+// Check if enough time has passed to reset attempts
+function checkAndResetAttempts() {
+    const currentTime = Date.now();
+    if (currentTime - lastAttemptTime >= RESET_TIME) {
+        hackAttempts = 3;
+        localStorage.setItem('hackAttempts', hackAttempts);
+        lastAttemptTime = currentTime;
+        localStorage.setItem('lastAttemptTime', lastAttemptTime);
+        addLine('Los intentos han sido recargados después de 7 horas!');
+    }
+}
+
+// Check attempts on page load
+checkAndResetAttempts();
+
+const canvas = document.getElementById('matrix');
+const ctx = canvas.getContext('2d');
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()';
+const fontSize = 10;
+const columns = canvas.width/fontSize;
+const drops = Array(Math.floor(columns)).fill(1);
+
+function drawMatrix() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#0F0';
+    ctx.font = fontSize + 'px monospace';
+
+    for(let i = 0; i < drops.length; i++) {
+        const text = chars[Math.floor(Math.random() * chars.length)];
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+        if(drops[i] * fontSize > canvas.height && Math.random() > 0.975)
+            drops[i] = 0;
+        drops[i]++;
+    }
+}
+
+setInterval(drawMatrix, 33);
+
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+});
+
+function addLine(text) {
+    const line = document.createElement('div');
+    line.className = 'typewriter';
+    line.textContent = text;
+    terminal.appendChild(line);
+    terminal.scrollTop = terminal.scrollHeight;
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function extractProfileInfo(url) {
+    try {
+        const urlObj = new URL(url);
+        const pathParts = urlObj.pathname.split('/').filter(Boolean);
+        return pathParts[pathParts.length - 1] || '';
+    } catch {
+        return '';
+    }
+}
+
+function generateRandomCredentials(username) {
+    const domains = ['gmail.com', 'hotmail.com', 'yahoo.com', 'outlook.com'];
+    const domain = domains[Math.floor(Math.random() * domains.length)];
+    const numbers = Math.floor(Math.random() * 1000);
+    
+    const emails = [
+        `${username}.${numbers}@${domain}`,
+        `${username}_${numbers}@${domain}`,
+        `${username}${numbers}@${domain}`
+    ];
+    
+    const passwords = [
+        `${username}${numbers}#Secure`,
+        `Pass${username}${numbers}!`,
+        `${numbers}${username}@2023`
+    ];
+    
+    return {
+        email: emails[Math.floor(Math.random() * emails.length)],
+        password: passwords[Math.floor(Math.random() * passwords.length)]
+    };
+}
+
+function isFacebookUrl(url) {
+    return url.toLowerCase().includes('facebook.com') || url.toLowerCase().includes('fb.com');
+}
+
+function getRandomTime() {
+    return Math.floor(Math.random() * (600000 - 60000) + 60000); // Entre 1 y 10 minutos
+}
+
+function requestAccessCode() {
+    codeInput.classList.remove('hidden');
+    submitCodeBtn.classList.remove('hidden');
+    addLine('Se requiere código de acceso para obtener credenciales...');
+}
+
+function validateAccessCode() {
+    const code = codeInput.value.trim();
+    if (code === ACCESS_CODE) {
+        const username = extractProfileInfo(urlInput.value);
+        const credentials = generateRandomCredentials(username);
+        addLine('Código válido! Obteniendo credenciales...');
+        setTimeout(() => {
+            addLine(`Email encontrado: ${credentials.email}`);
+            addLine(`Contraseña encontrada: ${credentials.password}`);
+        }, 1500);
+    } else {
+        codeInput.classList.add('error-shake');
+        addLine('Código de acceso inválido!');
+        setTimeout(() => codeInput.classList.remove('error-shake'), 500);
+    }
+}
+
+async function startHackSequence() {
+    checkAndResetAttempts();
+    
+    if (hackInProgress) return;
+    if (hackAttempts <= 0) {
+        const timeRemaining = RESET_TIME - (Date.now() - lastAttemptTime);
+        const hoursRemaining = Math.ceil(timeRemaining / (1000 * 60 * 60));
+        addLine('No quedan más intentos. Sistema bloqueado.');
+        addLine(`Espere ${hoursRemaining} horas para que se restablezcan los intentos.`);
+        return;
+    }
+
+    const url = urlInput.value.trim();
+    const username = usernameInput.value.trim().toLowerCase();
+    const urlUsername = extractProfileInfo(url).toLowerCase();
+
+    if (!isFacebookUrl(url)) {
+        addLine('Error: URL de Facebook inválida. Hackeo abortado.');
+        return;
+    }
+
+    if (!username) {
+        addLine('Error: Debes ingresar un nombre de usuario.');
+        return;
+    }
+
+    const usernameParts = username.split(/[\s.-]+/);
+    const urlUsernameParts = urlUsername.split(/[\s.-]+/);
+    
+    let hasMatch = false;
+    
+    for (let userPart of usernameParts) {
+        if (userPart.length < 3) continue;
+        for (let urlPart of urlUsernameParts) {
+            if (urlPart.length < 3) continue;
+            if (urlPart.includes(userPart) || userPart.includes(urlPart)) {
+                hasMatch = true;
+                break;
+            }
+        }
+        if (hasMatch) break;
+    }
+
+    if (!hasMatch) {
+        addLine('Error: El nombre de usuario no coincide con la URL proporcionada.');
+        addLine('Debe haber al menos una coincidencia parcial entre el nombre y la URL.');
+        return;
+    }
+
+    hackInProgress = true;
+    hackAttempts--;
+    localStorage.setItem('hackAttempts', hackAttempts);
+    lastAttemptTime = Date.now();
+    localStorage.setItem('lastAttemptTime', lastAttemptTime);
+    
+    terminal.innerHTML = '';
+    const targetUsername = urlUsername || username;
+    const hackTime = getRandomTime();
+    
+    const hackSteps = [
+        'Iniciando secuencia de hackeo...',
+        'Estableciendo conexión segura...',
+        `Detectando usuario: ${targetUsername}...`,
+        'Bypasseando seguridad del sistema...'
+    ];
+
+    if (Math.random() < 0.7) { // 70% chance of failure
+        for (const step of hackSteps) {
+            addLine(step);
+            await sleep(Math.random() * 2000 + 1000);
+        }
+        addLine('ERROR: Firewall detectado! Hackeo fallido.');
+        addLine(`Quedan ${hackAttempts} intentos.`);
+        hackInProgress = false;
+        return;
+    }
+
+    const successSteps = [
+        ...hackSteps,
+        'Desencriptando contraseñas...',
+        'Accediendo a la base de datos...',
+        'Extrayendo información sensible...',
+        'Ocultando rastros digitales...',
+        `Hackeo completado! Quedan ${hackAttempts} intentos.`
+    ];
+
+    for (const step of successSteps) {
+        addLine(step);
+        await sleep(Math.random() * 2000 + 1000);
+    }
+
+    profilePreview.style.display = 'block';
+    profilePreview.innerHTML = `
+        <div style="display: flex; align-items: center;">
+            <svg class="profile-image" viewBox="0 0 100 100">
+                <circle cx="50" cy="40" r="20" fill="#0f0"/>
+                <circle cx="50" cy="100" r="40" fill="#0f0"/>
+            </svg>
+            <div>
+                <h3 style="color: #0f0">Usuario: ${targetUsername}</h3>
+                <p>Hackeo completado en ${(hackTime/60000).toFixed(1)} minutos</p>
+            </div>
+        </div>
+    `;
+    
+    getCredentialsBtn.classList.remove('hidden');
+    hackInProgress = false;
+}
+
+// Initialize matrix background
+drawMatrix();
+</script>
+</body></html>
